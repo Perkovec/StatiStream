@@ -1,0 +1,26 @@
+stream_key_file:
+    twitch: ./twitch_key.txt
+
+platforms: ['twitch']
+
+ffmpeg_path: ffmpeg
+
+bot:
+    token: ./bot_key.txt
+    accepted_users:
+        - 1111111111
+
+source:
+    type: disk
+    s3bucket: test
+    s3endpoint: asdklhasjkdhasjk
+    s3credentials:
+        id: sakdhaduewihiada
+        secret: dnuiwehwiueheuiwh
+    s3region: asdjlka
+    directory_path: /var/videos/
+    files:
+        - /var/videos/video1.flv
+        - /var/videos/video2.flv
+        - /var/videos/video3.flv
+    pick_strategy: random
