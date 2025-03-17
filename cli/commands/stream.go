@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/Perkovec/StatiStream/internal/bot"
@@ -77,9 +78,12 @@ func (c *StreamCommand) initTelegramBot(cfg config.ConfigBot, storage storage.St
 		log.Fatal(err)
 	}
 
+	token := strings.ReplaceAll(string(botToken), "\n", "")
+	token = strings.TrimSpace(token)
+
 	return bot.NewBot(bot.BotParams{
 		AcceptedUsers: cfg.AcceptedUsers,
-		Token:         string(botToken),
+		Token:         token,
 		VideoStorage:  storage,
 		Streams:       streams,
 	})
