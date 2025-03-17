@@ -87,11 +87,11 @@ source:
 
 Поэтому надо предварительно подготовить видеозаписи для использования их сервисом, делается это через ffmpeg, вот пример:
 ```bash
-ffmpeg -i путь_до_файла -c:v libx264 -preset slow -b:v 5000k -maxrate 5000k -bufsize 6000k -vf "format=yuv420p" -g 50 -c:a aac -b:a 128k -ac 2 -ar 44100 выходной_файл.flv
+ffmpeg -i путь_до_файла -c:v libx264 -preset slow -profile:v main -b:v 5000k -maxrate 5000k -bufsize 6000k -c:a aac -b:a 128k -ar 44100 -ac 2 -f mpegts -vf "format=yuv420p" -r 30 -flags +global_header -fflags +genpts выходной_файл.ts
 ```
 К сожалению кодировка идет силами процессора, но если у вас есть видеокарта NVidia с последними драйверами, то можно использовать аппаратную кодировку:
 ```bash
-ffmpeg -hwaccel cuda -i путь_до_файла -c:v h264_hvenc -preset slow -b:v 5000k -maxrate 5000k -bufsize 6000k -vf format=yuv420p -g 50 -c:a aac -b:a 128k -ac 2 -ar 44100 выходной_файл.flv
+ffmpeg -hwaccel cuda -i путь_до_файла -c:v h264_hvenc -preset slow -profile:v main -b:v 5000k -maxrate 5000k -bufsize 6000k -c:a aac -b:a 128k -ar 44100 -ac 2 -f mpegts -vf "format=yuv420p" -r 30 -flags +global_header -fflags +genpts выходной_файл.ts
 ```
 Это значительно ускорит процесс кодировки
 

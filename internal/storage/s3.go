@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"math/rand"
 
@@ -69,13 +70,13 @@ func NewS3Storage(params S3StorageParams) (Storage, error) {
 	return st, nil
 }
 
-func (s *s3Storage) GetNextVideo() io.ReadCloser {
+func (s *s3Storage) GetNextVideo() (io.ReadCloser, int64, *VideoMeta) {
 	var key string
 	switch s.pickStrategy {
 	case config.PickStrategyRandom:
 		key = s.getRandomVideoKey()
 	default:
-		return nil
+		return nil, 0, nil
 	}
 
 	res, err := s.s3Service.GetObject(&s3.GetObjectInput{
@@ -83,16 +84,28 @@ func (s *s3Storage) GetNextVideo() io.ReadCloser {
 		Bucket: &s.bucket,
 	})
 	if err != nil {
-		return nil
+		return nil, 0, nil
 	}
-	return res.Body
+
+	var bodyLength int64 = 0
+	if res.ContentLength != nil {
+		bodyLength = *res.ContentLength
+	}
+
+	return res.Body, bodyLength, &VideoMeta{
+		Filename: key,
+	}
 }
 
 func (s *s3Storage) getRandomVideoKey() string {
 	if len(s.filesList) == 1 {
 		return s.filesList[0]
 	}
-	return s.filesList[rand.Intn(len(s.filesList)-1)]
+
+	source := rand.NewSource(time.Now().Unix())
+	r := rand.New(source)
+
+	return s.filesList[r.Intn(len(s.filesList))]
 }
 
 func (s *s3Storage) UpdateFilesList() error {
@@ -107,8 +120,8 @@ func (s *s3Storage) UpdateFilesList() error {
 
 	videoList := make([]string, 0, len(list.Contents))
 	for _, object := range list.Contents {
-		fmt.Println(*object.Key)
-		if strings.HasSuffix(*object.Key, ".flv") {
+		if strings.HasSuffix(*object.Key, ".ts") {
+			fmt.Println(*object.Key)
 			videoList = append(videoList, *object.Key)
 		}
 	}

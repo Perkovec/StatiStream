@@ -1,6 +1,8 @@
 package bot
 
 import (
+	"fmt"
+
 	"github.com/Perkovec/StatiStream/internal/storage"
 	"github.com/Perkovec/StatiStream/internal/stream"
 	telegramBot "github.com/go-telegram/bot"
@@ -68,8 +70,9 @@ func (s *streamBot) captureNextVideo() {
 	out:
 		for _, stream := range s.Streams {
 			<-stream.NextVideo()
-			video := s.VideoStorage.GetNextVideo()
-			stream.SetVideo(video)
+			video, contentLength, videoMeta := s.VideoStorage.GetNextVideo()
+			fmt.Printf("Start video \"%s\": %d\n", videoMeta.Filename, contentLength)
+			stream.SetVideo(video, contentLength)
 			break out
 		}
 	}

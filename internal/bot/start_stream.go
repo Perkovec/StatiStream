@@ -92,7 +92,7 @@ func (s *streamBot) handleStartStream(ctx context.Context, b *telegramBot.Bot, u
 			}
 
 			if update.CallbackQuery.Data == ApproveStartStreamCallback {
-				video := s.VideoStorage.GetNextVideo()
+				video, contentLength, videoMeta := s.VideoStorage.GetNextVideo()
 				if video == nil {
 					editText = "Не удалось получить видео для запуска стрима"
 				} else {
@@ -101,7 +101,8 @@ func (s *streamBot) handleStartStream(ctx context.Context, b *telegramBot.Bot, u
 						editText = fmt.Sprintf("Не удалось запустить стрим:\n%v", err)
 					} else {
 						editText = "Стрим запущен"
-						s.Streams.SetVideo(video)
+						fmt.Printf("Start video \"%s\": %d\n", videoMeta.Filename, contentLength)
+						s.Streams.SetVideo(video, contentLength)
 					}
 				}
 			}

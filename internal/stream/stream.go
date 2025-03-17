@@ -10,7 +10,7 @@ import (
 type Stream interface {
 	Start() error
 	Stop() error
-	SetVideo(video io.ReadCloser)
+	SetVideo(video io.ReadCloser, contentLength int64)
 	SetStreamToken(token string)
 	HasToken() bool
 	IsStarted() bool
@@ -43,8 +43,8 @@ func (s Streams) Stop() error {
 	return sErr
 }
 
-func (s Streams) SetVideo(video io.ReadCloser) {
+func (s Streams) SetVideo(video io.ReadCloser, contentLength int64) {
 	for _, stream := range s {
-		stream.SetVideo(video)
+		stream.SetVideo(video, contentLength)
 	}
 }

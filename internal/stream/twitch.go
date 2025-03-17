@@ -17,9 +17,8 @@ const (
 )
 
 type twitchStream struct {
-	ffmpegPath  string
-	token       string
-	nextVideoCb func()
+	ffmpegPath string
+	token      string
 
 	streamProcess      *exec.Cmd
 	streamProcessStdin io.WriteCloser
@@ -70,12 +69,19 @@ func (s *twitchStream) Stop() error {
 	return s.streamProcess.Process.Kill()
 }
 
-func (s *twitchStream) SetVideo(video io.ReadCloser) {
+func (s *twitchStream) SetVideo(video io.ReadCloser, contentLength int64) {
 	if !s.IsStarted() {
 		return
 	}
 
-	videoCtx := helpers.NewReader(s.ctx, video, s.nextCh)
+	videoCtx := helpers.NewReader(s.ctx, video, contentLength, s.nextCh)
+
+	nullPacket := make([]byte, 188)
+	nullPacket[0] = 0x47
+	nullPacket[1] = 0x1F
+	nullPacket[2] = 0xFF
+	nullPacket[3] = 0x10
+	s.streamProcessStdin.Write(nullPacket)
 
 	go io.Copy(s.streamProcessStdin, videoCtx)
 }
@@ -86,13 +92,21 @@ func (s *twitchStream) Start() error {
 	}
 
 	var command = []string{
-		"-loglevel", "warning", // only log warnings
-		"-hide_banner", // don't bother echoing out the codecs and build information
-		"-re",          // do this in real time
-		"-i", "pipe:0", // read from stdin
-		"-c", "copy", // don't actually encode
-		"-f", "flv", // output format
-		"-flvflags", "no_duration_filesize", // don't complain about not being
+		"-loglevel", "warning",
+		"-re",
+		"-f", "mpegts",
+		"-i", "pipe:0",
+		"-c", "copy",
+		"-f", "flv",
+		"-flvflags", "no_duration_filesize",
+
+		// "-loglevel", "warning", // only log warnings
+		// "-hide_banner", // don't bother echoing out the codecs and build information
+		// "-re",          // do this in real time
+		// "-i", "pipe:0", // read from stdin
+		// "-c", "copy", // don't actually encode
+		// "-f", "flv", // output format
+		// "-flvflags", "no_sequence_end+no_metadata+no_duration_filesize", // don't complain about not being
 		DefaultTwitchEndpoint + s.token,
 	}
 
@@ -116,7 +130,6 @@ func (s *twitchStream) Start() error {
 	s.cancel = cancel
 
 	go s.captureOutput(ctx, stderr)
-	go s.eofCapture(ctx)
 
 	s.streamProcess = r
 	s.streamProcessStdin = stdin
@@ -134,17 +147,6 @@ func (s *twitchStream) NextVideo() <-chan struct{} {
 	}()
 
 	return c
-}
-
-func (s *twitchStream) eofCapture(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-s.nextCh:
-			s.nextVideoCb()
-		}
-	}
 }
 
 func (s *twitchStream) captureOutput(ctx context.Context, r io.Reader) {
