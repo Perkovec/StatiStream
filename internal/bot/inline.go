@@ -9,6 +9,7 @@ import (
 	telegramBot "github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 	gonanoid "github.com/matoous/go-nanoid/v2"
+	"github.com/rs/zerolog"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -18,13 +19,21 @@ const (
 )
 
 func (s *streamBot) handleInline(ctx context.Context, b *telegramBot.Bot, update *models.Update) {
+	logger := zerolog.Ctx(ctx)
+
 	if update.InlineQuery == nil {
 		return
 	}
 
 	if slices.Contains(s.AcceptedUsers, update.InlineQuery.From.ID) {
+		logger.Info().
+			Int64("user", update.InlineQuery.From.ID).
+			Msgf("Handle inline query")
+
 		temporaryKey, err := gonanoid.New()
 		if err != nil {
+			logger.Err(err)
+
 			b.AnswerInlineQuery(ctx, &telegramBot.AnswerInlineQueryParams{
 				InlineQueryID: update.InlineQuery.ID,
 				IsPersonal:    true,
@@ -84,7 +93,13 @@ func (s *streamBot) handleInline(ctx context.Context, b *telegramBot.Bot, update
 }
 
 func (s *streamBot) handleSetStreamKey(ctx context.Context, b *telegramBot.Bot, update *models.Update) {
+	logger := zerolog.Ctx(ctx)
+
 	if slices.Contains(s.AcceptedUsers, update.Message.From.ID) {
+		logger.Info().
+			Int64("user", update.Message.From.ID).
+			Msgf("Handle set stream key")
+
 		parts := strings.Split(update.Message.Text, ":")
 		if len(parts) != 3 {
 			b.SendMessage(ctx, &telegramBot.SendMessageParams{

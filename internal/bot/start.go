@@ -6,10 +6,17 @@ import (
 
 	telegramBot "github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
+	"github.com/rs/zerolog"
 )
 
 func (s *streamBot) handleStart(ctx context.Context, b *telegramBot.Bot, update *models.Update) {
+	logger := zerolog.Ctx(ctx)
+
 	if slices.Contains(s.AcceptedUsers, update.Message.From.ID) {
+		logger.Info().
+			Int64("user", update.Message.From.ID).
+			Msgf("Handle start bot")
+
 		keyboard := models.ReplyKeyboardMarkup{
 			Keyboard: [][]models.KeyboardButton{
 				{
@@ -17,12 +24,15 @@ func (s *streamBot) handleStart(ctx context.Context, b *telegramBot.Bot, update 
 						Text: string(ButtonTypeNext),
 					},
 					{
-						Text: string(ButtonTypeStatistics),
+						Text: string(ButtonTypeQueue),
 					},
 				},
 				{
 					{
 						Text: string(ButtonTypeReloadList),
+					},
+					{
+						Text: string(ButtonTypeStatistics),
 					},
 				},
 				{

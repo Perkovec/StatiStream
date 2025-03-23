@@ -1,8 +1,10 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/rs/zerolog"
 )
 
 type S3StorageParams struct {
@@ -34,13 +37,14 @@ type s3Storage struct {
 	pickStrategy  config.PickStrategy
 	directoryPath string
 	filesList     []string
+	queue         []string
 }
 
 func boolPrt(value bool) *bool {
 	return &value
 }
 
-func NewS3Storage(params S3StorageParams) (Storage, error) {
+func NewS3Storage(ctx context.Context, params S3StorageParams) (Storage, error) {
 	sess, err := session.NewSession(&aws.Config{
 		Endpoint:         &params.Endpoint,
 		Credentials:      credentials.NewStaticCredentials(params.CredentialsID, params.CredentialsSecret, ""),
@@ -58,10 +62,11 @@ func NewS3Storage(params S3StorageParams) (Storage, error) {
 		directoryPath: params.DirectoryPath,
 		pickStrategy:  params.PickStrategy,
 		bucket:        params.Bucket,
+		queue:         []string{},
 	}
 
 	if len(params.Files) == 0 {
-		err := st.UpdateFilesList()
+		err := st.UpdateFilesList(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("S3Storage.UpdateFilesList: %w", err)
 		}
@@ -72,11 +77,16 @@ func NewS3Storage(params S3StorageParams) (Storage, error) {
 
 func (s *s3Storage) GetNextVideo() (io.ReadCloser, int64, *VideoMeta) {
 	var key string
-	switch s.pickStrategy {
-	case config.PickStrategyRandom:
-		key = s.getRandomVideoKey()
-	default:
-		return nil, 0, nil
+
+	if len(s.queue) > 0 {
+		key, s.queue = s.queue[0], s.queue[1:]
+	} else {
+		switch s.pickStrategy {
+		case config.PickStrategyRandom:
+			key = s.getRandomVideoKey()
+		default:
+			return nil, 0, nil
+		}
 	}
 
 	res, err := s.s3Service.GetObject(&s3.GetObjectInput{
@@ -108,7 +118,9 @@ func (s *s3Storage) getRandomVideoKey() string {
 	return s.filesList[r.Intn(len(s.filesList))]
 }
 
-func (s *s3Storage) UpdateFilesList() error {
+func (s *s3Storage) UpdateFilesList(ctx context.Context) error {
+	logger := zerolog.Ctx(ctx)
+
 	directory := strings.TrimRight(s.directoryPath, "/")
 	list, err := s.s3Service.ListObjectsV2(&s3.ListObjectsV2Input{
 		Bucket: &s.bucket,
@@ -121,12 +133,29 @@ func (s *s3Storage) UpdateFilesList() error {
 	videoList := make([]string, 0, len(list.Contents))
 	for _, object := range list.Contents {
 		if strings.HasSuffix(*object.Key, ".ts") {
-			fmt.Println(*object.Key)
 			videoList = append(videoList, *object.Key)
 		}
 	}
 
 	s.filesList = videoList
 
+	logger.Info().
+		Strs("files", videoList).
+		Msg("Files list updated")
+
 	return nil
+}
+
+func (s *s3Storage) GetQueue() []string {
+	return s.queue
+}
+
+func (s *s3Storage) AddToQueue(key string) {
+	if slices.Contains(s.filesList, key) {
+		s.queue = append(s.queue, key)
+	}
+}
+
+func (s *s3Storage) GetFilesList() []string {
+	return s.filesList
 }

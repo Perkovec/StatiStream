@@ -8,6 +8,7 @@ import (
 
 	telegramBot "github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
+	"github.com/rs/zerolog"
 )
 
 const (
@@ -17,7 +18,13 @@ const (
 )
 
 func (s *streamBot) preStartStream(ctx context.Context, b *telegramBot.Bot, update *models.Update) {
+	logger := zerolog.Ctx(ctx)
+
 	if slices.Contains(s.AcceptedUsers, update.Message.From.ID) {
+		logger.Info().
+			Int64("user", update.Message.From.ID).
+			Msgf("Prehandle start stream")
+
 		alreadyStartedPlatforms := make([]string, 0, len(s.Streams))
 		for platform, stream := range s.Streams {
 			if stream.IsStarted() {
@@ -72,6 +79,8 @@ func (s *streamBot) preStartStream(ctx context.Context, b *telegramBot.Bot, upda
 }
 
 func (s *streamBot) handleStartStream(ctx context.Context, b *telegramBot.Bot, update *models.Update) {
+	logger := zerolog.Ctx(ctx)
+
 	isAccepted := slices.Contains(s.AcceptedUsers, update.CallbackQuery.From.ID)
 	cbAnswerParams := &telegramBot.AnswerCallbackQueryParams{
 		CallbackQueryID: update.CallbackQuery.ID,
@@ -86,6 +95,10 @@ func (s *streamBot) handleStartStream(ctx context.Context, b *telegramBot.Bot, u
 
 	if isAccepted {
 		if update.CallbackQuery.Message.Message != nil {
+			logger.Info().
+				Int64("user", update.CallbackQuery.From.ID).
+				Msgf("Handle start stream")
+
 			var editText string
 			if update.CallbackQuery.Data == CancelStartStreamCallback {
 				editText = "Запуск стрима отменен"

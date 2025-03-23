@@ -1,6 +1,9 @@
 package storage
 
-import "io"
+import (
+	"context"
+	"io"
+)
 
 type VideoMeta struct {
 	Filename string
@@ -8,5 +11,8 @@ type VideoMeta struct {
 
 type Storage interface {
 	GetNextVideo() (io.ReadCloser, int64, *VideoMeta)
-	UpdateFilesList() error
+	UpdateFilesList(context.Context) error
+	GetQueue() []string
+	AddToQueue(key string)
+	GetFilesList() []string
 }

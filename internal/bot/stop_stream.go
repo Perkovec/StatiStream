@@ -6,6 +6,7 @@ import (
 
 	telegramBot "github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
+	"github.com/rs/zerolog"
 )
 
 const (
@@ -15,7 +16,13 @@ const (
 )
 
 func (s *streamBot) preStopStream(ctx context.Context, b *telegramBot.Bot, update *models.Update) {
+	logger := zerolog.Ctx(ctx)
+
 	if slices.Contains(s.AcceptedUsers, update.Message.From.ID) {
+		logger.Info().
+			Int64("user", update.Message.From.ID).
+			Msgf("Prehandle stop stream")
+
 		keyboard := models.InlineKeyboardMarkup{
 			InlineKeyboard: [][]models.InlineKeyboardButton{
 				{
